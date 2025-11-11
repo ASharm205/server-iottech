@@ -1,0 +1,8 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#f5f3ff"/>
+  <rect x="45" y="60" width="110" height="80" fill="#a78bfa" rx="8"/>
+  <circle cx="100" cy="100" r="20" fill="#f5f3ff"/>
+  <circle cx="100" cy="100" r="12" fill="#a78bfa"/>
+  <path d="M 80 140 Q 100 155 120 140" fill="none" stroke="#a78bfa" stroke-width="3"/>
+  <text x="100" y="190" text-anchor="middle" font-size="14" fill="#7c3aed">Motion Sensor</text>
+</svg>

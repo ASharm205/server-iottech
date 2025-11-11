@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Tech API</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🏠 IoT Tech API</h1>
+            <p>Smart Home Device Management System</p>
+        </header>
+
+        <main class="main-content">
+            <!-- API Documentation -->
+            <section class="api-section">
+                <h2>Available API Endpoints</h2>
+                
+                <div class="endpoint-list">
+                    <div class="endpoint-card">
+                        <h3>Get All Devices</h3>
+                        <p class="method-badge">GET</p>
+                        <code>/api/devices</code>
+                        <p>Returns all connected IoT devices</p>
+                        <button class="btn-primary" onclick="fetchAllDevices()">Try It</button>
+                    </div>
+
+                    <div class="endpoint-card">
+                        <h3>Get Device by ID</h3>
+                        <p class="method-badge">GET</p>
+                        <code>/api/devices/:id</code>
+                        <p>Returns a specific device by ID (1-6)</p>
+                        <input type="number" id="deviceId" placeholder="Enter device ID" min="1" max="6">
+                        <button class="btn-primary" onclick="fetchDeviceById()">Try It</button>
+                    </div>
+
+                    <div class="endpoint-card">
+                        <h3>Get Devices by Type</h3>
+                        <p class="method-badge">GET</p>
+                        <code>/api/devices/type/:type</code>
+                        <p>Filter devices by type (e.g., "Lighting", "Security", "Temperature Control")</p>
+                        <input type="text" id="deviceType" placeholder="e.g., Lighting, Security">
+                        <button class="btn-primary" onclick="fetchDevicesByType()">Try It</button>
+                    </div>
+
+                    <div class="endpoint-card">
+                        <h3>Get Devices by Status</h3>
+                        <p class="method-badge">GET</p>
+                        <code>/api/status/:status</code>
+                        <p>Filter devices by status (online/offline)</p>
+                        <input type="text" id="deviceStatus" placeholder="e.g., online, offline">
+                        <button class="btn-primary" onclick="fetchDevicesByStatus()">Try It</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Response Display -->
+            <section class="response-section">
+                <h2>Response</h2>
+                <div id="responseContainer" class="response-container">
+                    <p class="placeholder-text">Click on an API endpoint to see the response here</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 IoT Tech Server. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function fetchAllDevices() {
+            try {
+                const response = await fetch(`${API_BASE}/api/devices`);
+                const data = await response.json();
+                displayResponse(data);
+            } catch (error) {
+                displayError(error);
+            }
+        }
+
+        async function fetchDeviceById() {
+            const id = document.getElementById('deviceId').value;
+            if (!id) {
+                alert('Please enter a device ID');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE}/api/devices/${id}`);
+                if (!response.ok) throw new Error('Device not found');
+                const data = await response.json();
+                displayResponse(data);
+            } catch (error) {
+                displayError(error);
+            }
+        }
+
+        async function fetchDevicesByType() {
+            const type = document.getElementById('deviceType').value;
+            if (!type) {
+                alert('Please enter a device type');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE}/api/devices/type/${type}`);
+                if (!response.ok) throw new Error('No devices found');
+                const data = await response.json();
+                displayResponse(data);
+            } catch (error) {
+                displayError(error);
+            }
+        }
+
+        async function fetchDevicesByStatus() {
+            const status = document.getElementById('deviceStatus').value;
+            if (!status) {
+                alert('Please enter a status');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE}/api/status/${status}`);
+                const data = await response.json();
+                displayResponse(data);
+            } catch (error) {
+                displayError(error);
+            }
+        }
+
+        function displayResponse(data) {
+            const container = document.getElementById('responseContainer');
+            container.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        function displayError(error) {
+            const container = document.getElementById('responseContainer');
+            container.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#fef3c7"/>
+  <circle cx="100" cy="100" r="50" fill="#fbbf24"/>
+  <circle cx="100" cy="100" r="40" fill="#fcd34d"/>
+  <circle cx="100" cy="100" r="30" fill="#fef08a"/>
+  <text x="100" y="190" text-anchor="middle" font-size="14" fill="#f59e0b">Smart Light</text>
+</svg>
