@@ -74,6 +74,50 @@ const devices = [
   }
 ];
 
+// Slideshow data
+const slides = [
+  {
+    id: 1,
+    title: "Innovative IoT Solutions",
+    description: "Transform your business with cutting-edge technology",
+    emoji: "💡"
+  },
+  {
+    id: 2,
+    title: "Expert Software Development",
+    description: "Custom applications tailored to your needs",
+    emoji: "💻"
+  },
+  {
+    id: 3,
+    title: "Strategic Management Consulting",
+    description: "Optimize operations and drive growth",
+    emoji: "📊"
+  }
+];
+
+// Services data
+const services = [
+  {
+    id: 1,
+    title: "IoT Solutions",
+    description: "Custom IoT implementations for smart homes and enterprises",
+    icon: "🏠"
+  },
+  {
+    id: 2,
+    title: "Software Development",
+    description: "Full-stack development services for web and mobile applications",
+    icon: "💻"
+  },
+  {
+    id: 3,
+    title: "Management Consulting",
+    description: "Strategic consulting to optimize your operations",
+    icon: "📈"
+  }
+];
+
 // Routes
 
 // GET all devices
@@ -109,6 +153,16 @@ app.get('/api/status/:status', (req, res) => {
     d.status.toLowerCase() === status.toLowerCase()
   );
   res.json(filteredDevices);
+});
+
+// GET slides for slideshow
+app.get('/slides', (req, res) => {
+  res.json(slides);
+});
+
+// GET services
+app.get('/services', (req, res) => {
+  res.json(services);
 });
 
 // Serve index.html for root path
