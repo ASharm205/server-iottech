@@ -1,18 +1,7 @@
-# IoT Tech Server
+# IoTTech Server
 
-A Node.js/Express server that provides a REST API for smart home IoT devices. This server serves device data and includes a beautiful web interface to explore the available API endpoints.
+A Node.js/Express server that provides a REST API for services at IOTTech. This server serves device data and includes a beautiful web interface to explore the available API endpoints.
 
-## Features
-
-- ✨ Express.js REST API
-- 🏠 6 Smart Home Devices with realistic data
-- 🔍 Multiple query endpoints (by ID, type, status)
-- 📱 Responsive Web UI with API documentation
-- 🎨 Modern gradient design with smooth animations
-- 📸 Device images (SVG format)
-- 🚀 Ready to deploy on Render.com
-
-## Project Structure
 
 ```
 server-iottech/
@@ -85,15 +74,6 @@ The server will run on `http://localhost:3001`
 - **Description**: Filter devices by status
 - **Response**: Array of devices with specified status
 
-## Device Types
-
-1. **Smart Thermostat** - Temperature Control
-2. **Smart Light** - Lighting
-3. **Smart Door Lock** - Security
-4. **Smart Camera** - Security
-5. **Smart Plug** - Power Control
-6. **Motion Sensor** - Detection
-
 ## Deployment on Render.com
 
 1. Push your code to GitHub
@@ -117,18 +97,3 @@ const fetchDevices = async () => {
   setDevices(data);
 };
 ```
-
-## Technologies Used
-
-- **Backend**: Node.js, Express.js
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Icons**: SVG
-- **Deployment**: Render.com
-
-## Author
-
-Created as part of IoT Technology coursework
-
-## License
-
-ISC
