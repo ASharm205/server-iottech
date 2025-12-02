@@ -127,7 +127,7 @@ const devices = [
   }
 ];
 
-// Slideshow data
+// slideshow data
 const slides = [
   {
     id: 1,
@@ -149,7 +149,7 @@ const slides = [
   }
 ];
 
-// Services data
+// services data
 const services = [
   {
     id: 1,
@@ -171,18 +171,18 @@ const services = [
   }
 ];
 
-// Routes
-// Health status
+// routes
+// health status
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', port: PORT, db: dbStatus });
 });
 
-// GET all devices
+// get all devices
 app.get('/api/devices', (req, res) => {
   res.json(devices);
 });
 
-// GET device by ID
+// get device by ID
 app.get('/api/devices/:id', (req, res) => {
   const device = devices.find(d => d.id === parseInt(req.params.id));
   if (!device) {
@@ -191,7 +191,7 @@ app.get('/api/devices/:id', (req, res) => {
   res.json(device);
 });
 
-// GET devices by type
+// get devices by type
 app.get('/api/devices/type/:type', (req, res) => {
   const type = req.params.type;
   const filteredDevices = devices.filter(d => 
@@ -203,7 +203,7 @@ app.get('/api/devices/type/:type', (req, res) => {
   res.json(filteredDevices);
 });
 
-// GET devices by status
+// get devices by status
 app.get('/api/status/:status', (req, res) => {
   const status = req.params.status;
   const filteredDevices = devices.filter(d => 
@@ -212,17 +212,17 @@ app.get('/api/status/:status', (req, res) => {
   res.json(filteredDevices);
 });
 
-// GET slides for slideshow
+// get slides for slideshow
 app.get('/slides', (req, res) => {
   res.json(slides);
 });
 
-// GET services
+// get services
 app.get('/services', (req, res) => {
   res.json(services);
 });
 
-// CRUD: CaseStudies
+// crud: CaseStudies
 app.get('/api/casestudies', async (req, res) => {
   try {
     const items = await CaseStudy.find().sort({ createdAt: -1 });
@@ -296,12 +296,12 @@ app.delete('/api/casestudies/:id', async (req, res) => {
   }
 });
 
-// Serve index.html for root path
+// serve index.html for root path
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start server
+// start server
 app.listen(PORT, () => {
   console.log(`IoT Tech Server running on http://localhost:${PORT}`);
 });

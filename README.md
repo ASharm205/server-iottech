@@ -90,7 +90,7 @@ The server will run on `http://localhost:3001`
 Update your React client to fetch from the server:
 
 ```javascript
-// Example API call from client
+// example API call from client
 const fetchDevices = async () => {
   const response = await fetch('https://your-render-url.onrender.com/api/devices');
   const data = await response.json();
