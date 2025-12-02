@@ -1,16 +1,69 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const morgan = require('morgan');
+const multer = require('multer');
+const fs = require('fs');
+const dotenv = require('dotenv');
+const mongoose = require('mongoose');
+const Joi = require('joi');
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const MONGODB_URI = process.env.MONGODB_URI || '';
 
 // Middleware
 app.use(cors());
+app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Data - IoT Smart Home Devices
+// ensure uploads folder exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+// multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext).replace(/[^a-z0-9_-]/gi, '_');
+    const unique = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    cb(null, `${base}_${unique}${ext}`);
+  }
+});
+const upload = multer({ storage });
+
+// mongodb connection
+let dbStatus = 'disconnected';
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
+    .then(() => { dbStatus = 'connected'; console.log('MongoDB connected'); })
+    .catch((err) => { dbStatus = 'error'; console.error('MongoDB error:', err.message); });
+}
+
+// Mongoose model: CaseStudy
+const caseStudySchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true, trim: true },
+  industry: { type: String, required: true, trim: true },
+  imageUrl: { type: String },
+}, { timestamps: true });
+const CaseStudy = mongoose.models.CaseStudy || mongoose.model('CaseStudy', caseStudySchema);
+
+// joi validation
+const caseStudyJoi = Joi.object({
+  title: Joi.string().min(2).max(120).required(),
+  description: Joi.string().min(10).max(5000).required(),
+  industry: Joi.string().min(2).max(120).required(),
+});
+
+// data - IOTTECH Smart Home Devices
 const devices = [
   {
     id: 1,
@@ -119,6 +172,10 @@ const services = [
 ];
 
 // Routes
+// Health status
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', port: PORT, db: dbStatus });
+});
 
 // GET all devices
 app.get('/api/devices', (req, res) => {
@@ -163,6 +220,80 @@ app.get('/slides', (req, res) => {
 // GET services
 app.get('/services', (req, res) => {
   res.json(services);
+});
+
+// CRUD: CaseStudies
+app.get('/api/casestudies', async (req, res) => {
+  try {
+    const items = await CaseStudy.find().sort({ createdAt: -1 });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: 'server_error', message: err.message });
+  }
+});
+
+app.post('/api/casestudies', upload.single('image'), async (req, res) => {
+  try {
+    const { error, value } = caseStudyJoi.validate(req.body);
+    if (error) return res.status(400).json({ error: 'validation_error', message: error.message });
+
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+    const created = await CaseStudy.create({ ...value, imageUrl });
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(500).json({ error: 'server_error', message: err.message });
+  }
+});
+
+app.put('/api/casestudies/:id', upload.single('image'), async (req, res) => {
+  try {
+    const { error, value } = caseStudyJoi.validate(req.body);
+    if (error) return res.status(400).json({ error: 'validation_error', message: error.message });
+
+    const existing = await CaseStudy.findById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
+
+    let imageUrl = existing.imageUrl;
+    if (req.file) {
+      // delete old file if exists
+      if (imageUrl && imageUrl.startsWith('/uploads/')) {
+        const oldPath = path.join(__dirname, imageUrl);
+        fs.access(oldPath, fs.constants.F_OK, (e) => {
+          if (!e) fs.unlink(oldPath, () => {});
+        });
+      }
+      imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    existing.title = value.title;
+    existing.description = value.description;
+    existing.industry = value.industry;
+    existing.imageUrl = imageUrl;
+    await existing.save();
+    res.json(existing);
+  } catch (err) {
+    res.status(500).json({ error: 'server_error', message: err.message });
+  }
+});
+
+app.delete('/api/casestudies/:id', async (req, res) => {
+  try {
+    const existing = await CaseStudy.findById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
+
+    // delete file if exists
+    if (existing.imageUrl && existing.imageUrl.startsWith('/uploads/')) {
+      const oldPath = path.join(__dirname, existing.imageUrl);
+      fs.access(oldPath, fs.constants.F_OK, (e) => {
+        if (!e) fs.unlink(oldPath, () => {});
+      });
+    }
+
+    await existing.deleteOne();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'server_error', message: err.message });
+  }
 });
 
 // Serve index.html for root path
