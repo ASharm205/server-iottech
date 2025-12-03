@@ -4,6 +4,7 @@ const path = require('path');
 const morgan = require('morgan');
 const multer = require('multer');
 const fs = require('fs');
+const crypto = require('crypto');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const Joi = require('joi');
@@ -40,11 +41,47 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // mongodb connection
+// Improve connection diagnostics and timeouts for Render
+mongoose.set('bufferCommands', false);
 let dbStatus = 'disconnected';
 if (MONGODB_URI) {
-  mongoose.connect(MONGODB_URI)
+  mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 10000,
+    socketTimeoutMS: 20000,
+    maxPoolSize: 10,
+  })
     .then(() => { dbStatus = 'connected'; console.log('MongoDB connected'); })
-    .catch((err) => { dbStatus = 'error'; console.error('MongoDB error:', err.message); });
+    .catch((err) => {
+      dbStatus = 'error';
+      console.error('MongoDB error:', err.message);
+    });
+} else {
+  console.warn('MONGODB_URI not set. Skipping DB connection.');
+}
+
+// File-based persistence fallback (when MongoDB is not connected)
+const dataDir = path.join(__dirname, 'data');
+const dataFile = path.join(dataDir, 'casestudies.json');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, '[]', 'utf8');
+
+function readFileStore() {
+  try {
+    const raw = fs.readFileSync(dataFile, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeFileStore(items) {
+  fs.writeFileSync(dataFile, JSON.stringify(items, null, 2), 'utf8');
+}
+
+function genId() {
+  return typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // Mongoose model: CaseStudy
@@ -177,6 +214,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', port: PORT, db: dbStatus });
 });
 
+//  debug endpoint to inspect connection state
+app.get('/debug/db', (req, res) => {
+  res.json({
+    status: dbStatus,
+    readyState: mongoose.connection.readyState, 
+    name: mongoose.connection?.name,
+  });
+});
+
 // get all devices
 app.get('/api/devices', (req, res) => {
   res.json(devices);
@@ -225,7 +271,12 @@ app.get('/services', (req, res) => {
 // crud: CaseStudies
 app.get('/api/casestudies', async (req, res) => {
   try {
-    const items = await CaseStudy.find().sort({ createdAt: -1 });
+    if (mongoose.connection.readyState === 1) {
+      const items = await CaseStudy.find().sort({ createdAt: -1 });
+      return res.json(items);
+    }
+    const items = readFileStore();
+    items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: 'server_error', message: err.message });
@@ -238,7 +289,15 @@ app.post('/api/casestudies', upload.single('image'), async (req, res) => {
     if (error) return res.status(400).json({ error: 'validation_error', message: error.message });
 
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
-    const created = await CaseStudy.create({ ...value, imageUrl });
+    if (mongoose.connection.readyState === 1) {
+      const created = await CaseStudy.create({ ...value, imageUrl });
+      return res.status(201).json(created);
+    }
+    const items = readFileStore();
+    const now = new Date().toISOString();
+    const created = { _id: genId(), ...value, imageUrl, createdAt: now, updatedAt: now };
+    items.push(created);
+    writeFileStore(items);
     res.status(201).json(created);
   } catch (err) {
     res.status(500).json({ error: 'server_error', message: err.message });
@@ -250,27 +309,51 @@ app.put('/api/casestudies/:id', upload.single('image'), async (req, res) => {
     const { error, value } = caseStudyJoi.validate(req.body);
     if (error) return res.status(400).json({ error: 'validation_error', message: error.message });
 
-    const existing = await CaseStudy.findById(req.params.id);
-    if (!existing) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
+    const id = req.params.id;
+    if (mongoose.connection.readyState === 1) {
+      const existing = await CaseStudy.findById(id);
+      if (!existing) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
 
-    let imageUrl = existing.imageUrl;
+      let imageUrl = existing.imageUrl;
+      if (req.file) {
+        if (imageUrl && imageUrl.startsWith('/uploads/')) {
+          const oldPath = path.join(__dirname, imageUrl);
+          fs.access(oldPath, fs.constants.F_OK, (e) => { if (!e) fs.unlink(oldPath, () => {}); });
+        }
+        imageUrl = `/uploads/${req.file.filename}`;
+      }
+
+      existing.title = value.title;
+      existing.description = value.description;
+      existing.industry = value.industry;
+      existing.imageUrl = imageUrl;
+      await existing.save();
+      return res.json(existing);
+    }
+
+    const items = readFileStore();
+    const idx = items.findIndex(i => i._id === id);
+    if (idx === -1) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
+
+    let imageUrl = items[idx].imageUrl;
     if (req.file) {
-      // delete old file if exists
       if (imageUrl && imageUrl.startsWith('/uploads/')) {
         const oldPath = path.join(__dirname, imageUrl);
-        fs.access(oldPath, fs.constants.F_OK, (e) => {
-          if (!e) fs.unlink(oldPath, () => {});
-        });
+        fs.access(oldPath, fs.constants.F_OK, (e) => { if (!e) fs.unlink(oldPath, () => {}); });
       }
       imageUrl = `/uploads/${req.file.filename}`;
     }
 
-    existing.title = value.title;
-    existing.description = value.description;
-    existing.industry = value.industry;
-    existing.imageUrl = imageUrl;
-    await existing.save();
-    res.json(existing);
+    items[idx] = {
+      ...items[idx],
+      title: value.title,
+      description: value.description,
+      industry: value.industry,
+      imageUrl,
+      updatedAt: new Date().toISOString(),
+    };
+    writeFileStore(items);
+    res.json(items[idx]);
   } catch (err) {
     res.status(500).json({ error: 'server_error', message: err.message });
   }
@@ -278,18 +361,27 @@ app.put('/api/casestudies/:id', upload.single('image'), async (req, res) => {
 
 app.delete('/api/casestudies/:id', async (req, res) => {
   try {
-    const existing = await CaseStudy.findById(req.params.id);
-    if (!existing) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
-
-    // delete file if exists
-    if (existing.imageUrl && existing.imageUrl.startsWith('/uploads/')) {
-      const oldPath = path.join(__dirname, existing.imageUrl);
-      fs.access(oldPath, fs.constants.F_OK, (e) => {
-        if (!e) fs.unlink(oldPath, () => {});
-      });
+    const id = req.params.id;
+    if (mongoose.connection.readyState === 1) {
+      const existing = await CaseStudy.findById(id);
+      if (!existing) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
+      if (existing.imageUrl && existing.imageUrl.startsWith('/uploads/')) {
+        const oldPath = path.join(__dirname, existing.imageUrl);
+        fs.access(oldPath, fs.constants.F_OK, (e) => { if (!e) fs.unlink(oldPath, () => {}); });
+      }
+      await existing.deleteOne();
+      return res.json({ success: true });
     }
-
-    await existing.deleteOne();
+    const items = readFileStore();
+    const idx = items.findIndex(i => i._id === id);
+    if (idx === -1) return res.status(404).json({ error: 'not_found', message: 'CaseStudy not found' });
+    const imageUrl = items[idx].imageUrl;
+    if (imageUrl && imageUrl.startsWith('/uploads/')) {
+      const oldPath = path.join(__dirname, imageUrl);
+      fs.access(oldPath, fs.constants.F_OK, (e) => { if (!e) fs.unlink(oldPath, () => {}); });
+    }
+    items.splice(idx, 1);
+    writeFileStore(items);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'server_error', message: err.message });
