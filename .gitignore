@@ -73,6 +73,9 @@ web_modules/
 # Local JSON data store (ephemeral)
 data/
 
+# Uploaded files (ephemeral)
+uploads/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
